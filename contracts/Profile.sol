@@ -1,76 +1,85 @@
 //SPDX-License-Identifier: Unlicense
 pragma solidity ^0.8.4;
 
-contract Profile {
-    mapping(address => bool) public isCreator;
-    mapping(address => Creator) public creatorByAddress;
+contract FillionArtist {
+    error Fillion__AlreadyAnArtist();
+    error Fillion__OnlyArtists();
 
-    struct Creator {
-        uint256 id;
-        address creatorAddress;
-        uint256 dateCreated;
-        string details;
+    uint public artistCount = 0;
+    uint randomArtistID;
+
+    mapping(address => bool) public isArtist;
+    mapping(address => Artist) public artistByAddress;
+    mapping(uint256 => address) public addressById;
+
+    struct Artist {
+        uint id;
+        uint dateJoined;
+        address artistAddress;
+        string artistDetails;
     }
 
-    Creator[] public creators;
+    event newArtistJoined(
+        uint id,
+        uint dateJoined,
+        address artistAddress,
+        string artistDetails
+    );
 
-    function createProfile(string memory _details) public {
-        if (isCreator[msg.sender]) {
-            revert("You have an account");
-        }
-        if (bytes(_details).length == 0) {
-            revert("Input Details");
-        }
+    Artist[] public artists;
 
-        Creator memory c = Creator({
-            id: creators.length,
-            creatorAddress: msg.sender,
-            dateCreated: block.timestamp,
-            details: _details
+    function newArtistSignup(string memory _artistDetails)
+        external
+        onlyNonArtists
+    {
+        require(bytes(_artistDetails).length > 0);
+        artistCount++;
+        Artist memory newArtist = Artist({
+            id: artistCount,
+            dateJoined: block.timestamp,
+            artistAddress: msg.sender,
+            artistDetails: _artistDetails
         });
-
-        creators.push(c);
-        isCreator[msg.sender] = true;
-        creatorByAddress[msg.sender] = c;
+        isArtist[msg.sender] = true;
+        artists.push(newArtist);
+        artistByAddress[msg.sender] = newArtist;
+        addressById[artistCount] = msg.sender;
+        emit newArtistJoined(
+            artistCount,
+            block.timestamp,
+            msg.sender,
+            _artistDetails
+        );
     }
 
-    function updateDetails(string memory _details) public onlyCreators {
-        uint256 id = creatorByAddress[msg.sender].id;
+    function updateArtistDetails(
+        string memory _artistDetails,
+        uint256 _artistid
+    ) external onlyNonArtists {
+        require(addressById[_artistid] == msg.sender);
+        artistByAddress[msg.sender].artistDetails = _artistDetails;
+        emit newArtistJoined(
+            _artistid,
+            block.timestamp,
+            msg.sender,
+            _artistDetails
+        );
+    }
 
-        for (uint256 i = 0; i < creators.length; i++) {
-            if (i == id) {
-                creators[i] = creators[creators.length - 1];
-                creators.pop();
-                break;
-            }
+    function getAllArtists() external view returns (Artist[] memory) {
+        return artists;
+    }
+
+    modifier onlyArtists() {
+        if (isArtist[msg.sender] == false) {
+            revert Fillion__OnlyArtists();
         }
-
-        Creator memory c = Creator({
-            id: creators.length,
-            creatorAddress: msg.sender,
-            dateCreated: block.timestamp,
-            details: _details
-        });
-
-        creators.push(c);
-        creatorByAddress[msg.sender] = c;
+        _;
     }
-
-    function getAllCreators() external view returns (Creator[] memory) {
-        return creators;
-    }
-
-    function getCreatorById(uint256 _id) public view returns (Creator memory) {
-        return creators[_id];
-    }
-
-    function getCreatorByAddress(address _creatorAddress) public view returns (Creator memory) {
-        return creatorByAddress[_creatorAddress];
-    }
-
-    modifier onlyCreators() {
-        if (!isCreator[msg.sender]) {
-            revert("Not a Creator");
+    
+    modifier onlyNonArtists() {
+        if (isArtist[msg.sender] == true) {
+            revert Fillion__AlreadyAnArtist();
         }
         _;
     }
