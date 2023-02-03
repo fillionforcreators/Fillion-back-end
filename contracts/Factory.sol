@@ -2,12 +2,12 @@
 pragma solidity ^0.8.4;
 
 import "./Collection.sol";
-import "./Profile.sol";
+import "./FillionArtist.sol";
 
 /*
  * @dev Factory contract for creating collections
  */
-contract Factory is Profile {
+contract Factory is FillionArtist {
     /*
      * @dev Array of all collections
      */

@@ -3,7 +3,6 @@ require("hardhat-deploy-ethers")
 
 const { networkConfig } = require("../helper-hardhat-config")
 
-
 const private_key = network.config.accounts[0]
 const wallet = new ethers.Wallet(private_key, ethers.provider)
 
@@ -12,24 +11,24 @@ module.exports = async ({ deployments }) => {
     const chainId = network.config.chainId
     const tokensToBeMinted = networkConfig[chainId]["tokensToBeMinted"]
 
-    //deploy Simplecoin
-    const SimpleCoin = await ethers.getContractFactory('SimpleCoin', wallet);
-    console.log('Deploying Simplecoin...');
-    const simpleCoin = await SimpleCoin.deploy(tokensToBeMinted);
-    await simpleCoin.deployed()
-    console.log('SimpleCoin deployed to:', simpleCoin.address);
+    //deploy the Fillion Artist contract
+    const FillionArtist = await ethers.getContractFactory("FillionArtist", wallet)
+    console.log("Deploying the FillionArtist contract...")
+    const fillionArtist = await FillionArtist.deploy()
+    await fillionArtist.deployed()
+    console.log("FillionArtist contract deployed to:", fillionArtist.address)
 
-    //deploy FilecoinMarketConsumer
-    const FilecoinMarketConsumer = await ethers.getContractFactory('FilecoinMarketConsumer', wallet);
-    console.log('Deploying FilecoinMarketConsumer...');
-    const filecoinMarketConsumer = await FilecoinMarketConsumer.deploy();
-    await filecoinMarketConsumer.deployed()
-    console.log('FilecoinMarketConsumer deployed to:', filecoinMarketConsumer.address);
+    // //deploy the Factory contract
+    // const Factory = await ethers.getContractFactory("Factory", wallet)
+    // console.log("Deploying the Collection contract...")
+    // const factory = await Factory.deploy()
+    // await factory.deployed()
+    // console.log("Factory deployed to:", factory.address)
 
-    //deploy DealRewarder
-    const DealRewarder = await ethers.getContractFactory('DealRewarder', wallet);
-    console.log('Deploying DealRewarder...');
-    const dealRewarder = await DealRewarder.deploy();
-    await dealRewarder.deployed()
-    console.log('DealRewarder deployed to:', dealRewarder.address);
+    // //deploy the Collection contract
+    // const Collection = await ethers.getContractFactory("Collection", wallet)
+    // console.log("Deploying the Collection contract...")
+    // const collection = await Collection.deploy()
+    // await collection.deployed()
+    // console.log("Collection deployed to:", collection.address)
 }

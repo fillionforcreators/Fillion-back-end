@@ -2,6 +2,8 @@
 
 ## Cloning the Repo
 
+FillionArtist contract address: 0x419b995edc4809fa6Ca60a08a7C2659Ac7009A2d
+
 Open up your terminal (or command prompt) and navigate to a directory you would like to store this code on. Once there type in the following command:
 
 
