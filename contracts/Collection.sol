@@ -5,7 +5,7 @@ import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
 
-import "./market.sol";
+import "./Market.sol";
 
 /*
 * @dev Collection contract for creating an ERC1155 collection

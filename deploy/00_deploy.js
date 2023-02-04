@@ -11,16 +11,16 @@ module.exports = async ({ deployments }) => {
     const chainId = network.config.chainId
     const tokensToBeMinted = networkConfig[chainId]["tokensToBeMinted"]
 
-    //deploy the Fillion Artist contract
-    const FillionArtist = await ethers.getContractFactory("FillionArtist", wallet)
-    console.log("Deploying the FillionArtist contract...")
-    const fillionArtist = await FillionArtist.deploy()
-    await fillionArtist.deployed()
-    console.log("FillionArtist contract deployed to:", fillionArtist.address)
+    // //deploy the Fillion Artist contract
+    // const FillionArtist = await ethers.getContractFactory("FillionArtist", wallet)
+    // console.log("Deploying the FillionArtist contract...")
+    // const fillionArtist = await FillionArtist.deploy()
+    // await fillionArtist.deployed()
+    // console.log("FillionArtist contract deployed to:", fillionArtist.address)
 
-    // //deploy the Factory contract
+    //deploy the Factory contract
     // const Factory = await ethers.getContractFactory("Factory", wallet)
-    // console.log("Deploying the Collection contract...")
+    // console.log("Deploying the Factory contract...")
     // const factory = await Factory.deploy()
     // await factory.deployed()
     // console.log("Factory deployed to:", factory.address)
@@ -31,4 +31,11 @@ module.exports = async ({ deployments }) => {
     // const collection = await Collection.deploy()
     // await collection.deployed()
     // console.log("Collection deployed to:", collection.address)
+
+       //deploy the Market contract
+       const Market = await ethers.getContractFactory("FillionMarketplace", wallet)
+       console.log("Deploying the Marketplace contract...")
+       const market = await Market.deploy()
+       await market.deployed()
+       console.log("Market deployed to:", market.address)
 }
