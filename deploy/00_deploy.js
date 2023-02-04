@@ -19,11 +19,11 @@ module.exports = async ({ deployments }) => {
     // console.log("FillionArtist contract deployed to:", fillionArtist.address)
 
     //deploy the Factory contract
-    // const Factory = await ethers.getContractFactory("Factory", wallet)
-    // console.log("Deploying the Factory contract...")
-    // const factory = await Factory.deploy()
-    // await factory.deployed()
-    // console.log("Factory deployed to:", factory.address)
+    const Factory = await ethers.getContractFactory("Factory", wallet)
+    console.log("Deploying the Factory contract...")
+    const factory = await Factory.deploy()
+    await factory.deployed()
+    console.log("Factory deployed to:", factory.address)
 
     // //deploy the Collection contract
     // const Collection = await ethers.getContractFactory("Collection", wallet)
@@ -33,9 +33,9 @@ module.exports = async ({ deployments }) => {
     // console.log("Collection deployed to:", collection.address)
 
        //deploy the Market contract
-       const Market = await ethers.getContractFactory("FillionMarketplace", wallet)
-       console.log("Deploying the Marketplace contract...")
-       const market = await Market.deploy()
-       await market.deployed()
-       console.log("Market deployed to:", market.address)
+    //    const Market = await ethers.getContractFactory("FillionMarketplace", wallet)
+    //    console.log("Deploying the Marketplace contract...")
+    //    const market = await Market.deploy()
+    //    await market.deployed()
+    //    console.log("Market deployed to:", market.address)
 }
