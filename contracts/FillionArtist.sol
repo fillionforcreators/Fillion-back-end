@@ -55,7 +55,7 @@ contract FillionArtist {
     function updateArtistDetails(
         string memory _artistDetails,
         uint256 _artistid
-    ) external onlyNonArtists {
+    ) external onlyArtists {
         require(addressById[_artistid] == msg.sender);
         artistByAddress[msg.sender].artistDetails = _artistDetails;
         emit newArtistJoined(

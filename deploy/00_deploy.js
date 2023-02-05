@@ -32,7 +32,7 @@ module.exports = async ({ deployments }) => {
     // await collection.deployed()
     // console.log("Collection deployed to:", collection.address)
 
-       //deploy the Market contract
+    //deploy the Market contract
     //    const Market = await ethers.getContractFactory("FillionMarketplace", wallet)
     //    console.log("Deploying the Marketplace contract...")
     //    const market = await Market.deploy()
