@@ -1,139 +1,117 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
-import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/utils/Strings.sol";
+import { ERC1155 } from "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
+import { ERC1155Supply } from "@openzeppelin/contracts/token/ERC1155/extensions/ERC1155Supply.sol";
+import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
+import {Counters } from "@openzeppelin/contracts/utils/Counters.sol";
 
-import "./Market.sol";
+///@notice error when uri for non-existent collection is queried
+error NonExistentToken();
+//@notice when array lengths are not equal
+error ArrayLengthsNotEqual();
 
-/*
-* @dev Collection contract for creating an ERC1155 collection
-*/
-contract Collection is ERC1155, Ownable {
+contract Collection is ERC1155Supply, Ownable {
+    using Counters for Counters.Counter;
 
-    FillionMarketplace public fmp;
+    /// @dev - Boolean to check if collection has been minted
+    bool minted;
+    ///@notice - Counters for tokenIDs
+    Counters.Counter private _tokenID;
 
-    /*
-    * @dev The name of the collection
-    */
-    string public collectionName;
+    ///@notice - Mapping for tokenURIs
 
-    /*
-    * @dev The base uri for the collection
-    */
-    string public baseMetadataURI; 
+    /**
+     * @notice - Mapping for tokenURIs
+     * @dev - tokenID => tokenURI
+     */
+    mapping(uint256 => string) public _tokenURIs;
 
-    /*
-    * @dev The contents of the collection
-    */
-    string[] public contents;
-
-    /*
-    * @dev The marketplace address
-    */
-    address marketPlace;
-
-    /*
-    * @dev Constructor for the collection
-    * @param _collectionName The name of the collection
-    * @param _uri The base uri for the collection
-    * @param _contents The contents of the collection
-    */
-    constructor(string memory _collectionName, string memory _uri, string[] memory _contents, address _marketPlace) ERC1155(_uri) {
-        collectionName = _collectionName;
-        baseMetadataURI = _uri;
-        contents = _contents;
-        setURI(_uri);
-        transferOwnership(tx.origin);
-        marketPlace = _marketPlace;
-    }   
+    ///@dev hardcoded marketplace address for easy approval
+    address public marketPlace = 0x5FbDB2315678afecb367f032d93F642f64180aa3;
+    string public contractHash; //the contract details hash
+    uint[] public quantities; //the quantities of each token
+    string[] public allTokenURIs; //an array of all tokenURIs
+    uint256[] public token_ids; //an array of all tokenIDs 
 
     /*
-    * @dev Get the uri for a token
-    * @param _tokenid The id of the token
-    * @return The uri for the token
+    constructor is executed when the factory contract calls its own deployERC1155 method
     */
-    function uri(uint256 _tokenid) override public view returns (string memory) {
-        if(_tokenid == 0 || _tokenid > (contents.length)) {
-            revert("Not an Id");
-        }
-        return string(
-            abi.encodePacked(
-                baseMetadataURI,
-                Strings.toString(_tokenid),".json"
-            )
-        );
-    }
+    constructor(
+        string memory _contractHash,
+        string[] memory _hashOfNFTS,
+        uint256[] memory _ids,
+        uint256[] memory _quantities,
+        address owner
+    ) ERC1155("") {
+        if(_hashOfNFTS.length != _quantities.length || _hashOfNFTS.length != _ids.length)
+            revert ArrayLengthsNotEqual();
+        
+        contractHash = _contractHash;
+        quantities = _quantities;
+        allTokenURIs = _hashOfNFTS;
+        token_ids = _ids;
 
-    /*
-    * @dev Get the content for a token
-    * @param _tokenid The id of the token
-    * @return The content for the token
-    */
-    function getContentById(uint256 _id) public view returns(string memory) {
-        _id--;
-        return contents[_id];
-    }  
-
-    /*
-    * @dev Get the contents of the collection
-    * @return The contents of the collection
-    */
-    function getContents() public view returns(string[] memory) {
-        return contents;
-    }
-
-    /*
-    * @dev Set the base uri for the collection
-    * @param newuri The new base uri for the collection
-    */
-    function setURI(string memory newuri) public onlyOwner {
-        _setURI(newuri);
-    }
-
-    /*
-    * @dev Mint a new token to an address
-    * @param account The address to mint the token to
-    * @param _contentId The id of the content
-    * @param amount The amount of tokens to mint
-    * @return The id of the content
-    */
-    function mint(address account, uint _contentId, uint256 amount) 
-        public onlyOwner returns (uint)
-    {
-        if(_contentId == 0 || _contentId > (contents.length)) {
-            revert("Not an Id");
-        }
-
-        fmp = FillionMarketplace(marketPlace);
-        fmp.addNFTOwnership(address(this), _contentId, account);
-
-        _mint(account, _contentId, amount, "");
-        return _contentId;
-    }
-
-    /*
-    * @dev Mint a batch of tokens to an address
-    * @param to The address to mint the tokens to
-    * @param _ids The ids of the contents
-    * @param amounts The amounts of tokens to mint
-    * @param data The data to pass to the receiver
-    */
-    function mintBatch(address to, uint256[] memory _ids, uint256[] memory amounts, bytes memory data)
-        public onlyOwner 
-    {  
-        for(uint i = 0; i < _ids.length; i++) {
-            if(_ids[i] == 0 || _ids[i] > (contents.length)) {
-                revert("Not an Id");
+        uint length = _hashOfNFTS.length;
+        for (uint i = 0; i < length; ) {
+            _tokenID.increment();
+            _tokenURIs[_tokenID.current()] = _hashOfNFTS[i];
+            unchecked {
+                ++i;
             }
         }
-
-        fmp = FillionMarketplace(marketPlace);
-        for(uint i = 0; i < _ids.length; i++) {
-            fmp.addNFTOwnership(address(this), _ids[i], to);
-        }
-
-        _mintBatch(to, _ids, amounts, data);
+        transferOwnership(owner);
     }
+
+    /**
+     * @dev Returns the numbers of child tokens deployed.
+     */
+    function getTotalChildren() public view returns (uint256) {
+        return _tokenID.current();
+    }
+
+    /**
+     * @dev necessary override of _beforeTokenTransfer See {ERC1155-_beforeTokenTransfer}.
+     */
+    function _beforeTokenTransfer(
+        address operator,
+        address from,
+        address to,
+        uint256[] memory ids,
+        uint256[] memory amounts,
+        bytes memory data
+    ) internal override {
+        super._beforeTokenTransfer(operator, from, to, ids, amounts, data);
+    }
+
+    /**
+     * @dev Returns the token uri for a token ID
+     * @param id uint256 ID of the token uri
+     * @return _tokenURIs of token ID
+     */
+    function uri(uint256 id) public view override returns (string memory) {
+        if (!exists(id)) revert NonExistentToken();
+        return _tokenURIs[id];
+    }
+
+    function mintAll() external onlyOwner {
+        require(!minted);
+        minted = true;
+       _mintBatch(msg.sender, token_ids, quantities, "");
+    }
+
+
+    /**
+     * Override isApprovedForAll to whitelist marketPlace for all token owners
+     */
+    function isApprovedForAll(address owner, address operator)
+        public
+        view
+        override
+        returns (bool)
+    {
+        if(operator == marketPlace) return true;
+        return super.isApprovedForAll(owner, operator);
+    }
+
 }

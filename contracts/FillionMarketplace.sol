@@ -1,12 +1,10 @@
 //SPDX-License-Identifier: Unlicense
 pragma solidity ^0.8.4;
-
 import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
+import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-
-import "./Collection.sol";
 
 /**
 @title - Fillion Marketplace is a decentralized marketplace for everyone to sell their artworks.
@@ -16,12 +14,12 @@ import "./Collection.sol";
 
 ///@notice Custom error messages for the FillionMarketplace.sol
 
-///@notice - raised when an address is not the owner of the ERC1155 token.
-error Fillion__ERC1155NotOwner();
-///@notice - raised when the marketplace does not have appoval for the ERC1155 token.
-error Fillion__ERC1155ApprovalRequired();
-///@notice - raised when an address tries to list an ERC1155 token that is already listed in the marketplace.
-error Fillion__ERC1155AlreadyListed();
+///@notice - raised when an address is not the owner of the ERC721 token.
+error Fillion__ERC721NotOwner();
+///@notice - raised when the marketplace does not have appoval for the ERC721 token.
+error Fillion__ERC721ApprovalRequired();
+///@notice - raised when an address tries to list an ERC721 token that is already listed in the marketplace.
+error Fillion__ERC721AlreadyListed();
 ///@notice - raised when the seller of a listed token doesn't own the token anymore.
 error Fillion__SellerNotOwner();
 ///@notice - raised when caller is not the owner of the token.
@@ -35,15 +33,10 @@ contract FillionMarketplace is Ownable {
     using EnumerableSet for EnumerableSet.UintSet;
     using Counters for Counters.Counter;
 
-    Collection public nft;
-
     ///@notice - Counters for listings
     Counters.Counter private _listingId;
-    Counters.Counter private _nftId;
     ///@notice - Tracking active listings & offers
     EnumerableSet.UintSet private openListings;
-
-    EnumerableSet.UintSet private userNftList;
 
     ///@notice - ENUMS
     enum State {
@@ -58,12 +51,8 @@ contract FillionMarketplace is Ownable {
     mapping(address => mapping(uint256 => bool)) isTokenListed;
     mapping(uint256 => Listing) private listingIdToListing;
 
-    mapping(address => EnumerableSet.UintSet) private userNFTs;
-    mapping(uint256 => NFTOwnership) public idToNftOwnership;
-    mapping(address => mapping(uint256 => uint256)) public nftId;
-
     /**
-        @notice - Structure for an ERC1155 listing
+        @notice - Structure for an ERC721 listing
         @param tokenId - The token ID of the token
         @param nftAddress - The address of the token
         @param price - The price of the token
@@ -81,22 +70,7 @@ contract FillionMarketplace is Ownable {
     }
 
     /**
-        @notice - Structure for an ERC1155 ownership
-        @param tokenId - The token ID of the token
-        @param nftAddress - The address of the token
-        @param uri - The uri of the token
-        @param owner - The address of the owner
-    */
-    struct NFTOwnership {
-        uint256 id;
-        uint256 tokenId;
-        address nftAddress;
-        string uri;
-        address owner;
-    }
-
-    /**
-        @notice - Event for when an ERC1155 listing is created
+        @notice - Event for when an ERC721 listing is created
         @param _tokenId - The token ID of the token
         @param _nftAddress - The address of the token
         @param _price - The price of the token
@@ -104,12 +78,12 @@ contract FillionMarketplace is Ownable {
      */
     event ListingCreated(
         uint256 _price,
-        uint256 _tokenId,
-        address _nftAddress,
-        address _seller
+        uint256 indexed _tokenId,
+        address indexed _nftAddress,
+        address indexed _seller
     );
     /**
-        @notice - Event for when an ERC1155 listing is sold
+        @notice - Event for when an ERC721 listing is sold
         @param _price - The price of the token
         @param _tokenId - The token ID of the token
         @param _nftAddress - The address of the token
@@ -118,22 +92,22 @@ contract FillionMarketplace is Ownable {
      */
     event ListingSold(
         uint256 _price,
-        uint256 _tokenId,
-        address _nftAddress,
-        address _seller,
+        uint256 indexed _tokenId,
+        address indexed _nftAddress,
+        address indexed _seller,
         address _buyer
     );
 
     /**
-        @notice - Event for when an ERC1155 listing is cancelled
+        @notice - Event for when an ERC721 listing is cancelled
         @param _tokenId - The token ID of the token
         @param _nftAddress - The address of the token
         @param _seller - The address of the seller
      */
     event ListingCancelled(
-        uint256 _tokenId,
-        address _nftAddress,
-        address _seller
+        uint256 indexed _tokenId,
+        address indexed _nftAddress,
+        address indexed _seller
     );
 
     /**@notice - Function to create a listing
@@ -149,7 +123,7 @@ contract FillionMarketplace is Ownable {
     )
         public
         onlyNftOwner(_nftAddress, _tokenId)
-        HasApprovalItem(_nftAddress)
+        HasApprovalERC721(_nftAddress)
         NotListed(_nftAddress, _tokenId)
         returns (uint256)
     {
@@ -171,35 +145,37 @@ contract FillionMarketplace is Ownable {
         return listing.id;
     }
 
-    /**@notice - Function to buy an ERC1155 listing
+    /**@notice - Function to buy an ERC721 listing
         @param listingId - The ID of the listing
     */
     function buyListing(uint256 listingId) external payable {
         Listing memory listing = listingIdToListing[listingId];
-
         if (listing.state != State.OPEN) revert Fillion__ListingNotOpen();
+
+        if (
+            IERC721(listing.nftAddress).ownerOf(listing.tokenId) !=
+            listing.seller
+        ) revert Fillion__SellerNotOwner();
+
         if (msg.value != listing.price) revert Fillion__WrongPrice();
 
         listing.state = State.COMPLETED;
         isTokenListed[listing.nftAddress][listing.tokenId] = false;
-
         //Set active to updated listing
         listingIdToListing[listingId] = listing;
-
         //Remove listing from open listings and from the address's active listings
-        _removeListingStorage(listingId);     
-
-        uint256 nftid = nftId[listing.nftAddress][listing.tokenId];
-        removeNFTOwnership(listing.seller, nftid);
-        addNFTOwnership(listing.nftAddress, listing.tokenId, msg.sender);
-
+        _removeListingStorage(listingId);
         uint royalty = (msg.value * 1) / 100;
         uint sellerFunds = (msg.value * 99) / 100;
         // Transfer the Funds then NFT afterwards
         (bool success, ) = getOwner().call{value: royalty}("");
         (bool sellerSuccess, ) = listing.seller.call{value: sellerFunds}("");
         if (success && sellerSuccess) {
-            nft.safeTransferFrom(listing.seller, msg.sender, listingId, listing.price, "");
+            IERC721(listing.nftAddress).safeTransferFrom(
+                listing.seller,
+                msg.sender,
+                listing.tokenId
+            );
         } else {
             revert();
         }
@@ -223,11 +199,7 @@ contract FillionMarketplace is Ownable {
             listingIdToListing[listingId].tokenId
         )
     {
-        require(
-            listingIdToListing[listingId].state == State.OPEN,
-            "Listing already ended."
-        );
-
+        if(listingIdToListing[listingId].state != State.OPEN) revert Fillion__ListingNotOpen();
         // Make the removal
         listingIdToListing[listingId].state = State.CANCELLED;
         _removeListingStorage(listingId);
@@ -248,8 +220,7 @@ contract FillionMarketplace is Ownable {
         view
         returns (Listing[] memory)
     {
-        uint256[] memory userActiveListings = addrToActiveListings[userAddress]
-            .values();
+        uint256[] memory userActiveListings = addrToActiveListings[userAddress].values();
         uint256 length = userActiveListings.length;
         Listing[] memory userListings = new Listing[](length);
 
@@ -282,14 +253,14 @@ contract FillionMarketplace is Ownable {
      * @dev Add listing to storage
      * @param listing - Listing to add
      */
-    // function _addListingStorage(Listing memory listing) internal {
-    //     uint id = listing.id;
-    //     uint tokenId = listing.tokenId;
-    //     listingIdToListing[id] = listing;
-    //     addrToActiveListings[msg.sender].add(id);
-    //     tokenIdToListing[tokenId] = listing;
-    //     openListings.add(id);
-    // }
+    function _addListingStorage(Listing memory listing) internal {
+        uint id = listing.id;
+        uint tokenId = listing.tokenId;
+        listingIdToListing[id] = listing;
+        addrToActiveListings[msg.sender].add(id);
+        tokenIdToListing[tokenId] = listing;
+        openListings.add(id);
+    }
 
     ///@notice - Get all active listings
     function getAllActiveListings() external view returns (Listing[] memory) {
@@ -313,73 +284,27 @@ contract FillionMarketplace is Ownable {
         return payable(owner);
     }
 
-    function addNFTOwnership(address _nftAddress, uint256 _tokenId, address _owner) public {
-        if (msg.sender != address(this)) {
-            if (msg.sender != _nftAddress) 
-            revert();
-        }
-        if (nftId[_nftAddress][_tokenId] <= _nftId.current()) {
-            uint256 id = nftId[_nftAddress][_tokenId];
-            userNftList.add(id);
-            userNFTs[_owner].add(id);
-        } else {
-            _nftId.increment();
-            nft = Collection(_nftAddress);
-            string memory uri = nft.uri(_tokenId);
-
-            NFTOwnership memory nftOwnership = NFTOwnership({
-                id: _nftId.current(),
-                tokenId: _tokenId,
-                nftAddress: _nftAddress,
-                uri: uri,
-                owner: _owner
-            });
-            nftId[_nftAddress][_tokenId] = _nftId.current();
-            idToNftOwnership[_nftId.current()] = nftOwnership;
-
-            userNftList.add(nftOwnership.id);
-            userNFTs[_owner].add(nftOwnership.id);
-        }
-    }
-
-    function removeNFTOwnership(address userAddress, uint256 _nftListId) internal {
-        userNFTs[userAddress].remove(_nftListId);
-        userNftList.remove(_nftListId);
-    }
-
-    function getUserNFTs(address userAddress) external view returns (NFTOwnership[] memory) {
-        uint256[] memory userNFTsList = userNFTs[userAddress].values();
-        uint256 length = userNFTsList.length;
-        NFTOwnership[] memory nftOwnership = new NFTOwnership[](length);
-
-        for (uint i = 0; i < length; ) {
-            nftOwnership[i] = idToNftOwnership[userNFTsList[i]];
-            unchecked {
-                ++i;
-            }
-        }
-
-        return nftOwnership;
-    }
-
-
     /////////////////////MODIFIERS///////////////////////////////
     ///@notice - Modifier to check if the caller is the owner of the token.
     modifier onlyNftOwner(address _nftAddress, uint256 _tokenId) {
-        if (IERC1155(_nftAddress).balanceOf(msg.sender, _tokenId) == 0)
-            revert Fillion__ERC1155NotOwner();
+        // Get the owner
+        address nftOwner = IERC721(_nftAddress).ownerOf(_tokenId);
+        // Make the check
+        if (msg.sender != nftOwner) {
+            revert Fillion__ERC721NotOwner();
+        }
+        //  Cont.
         _;
     }
-
     /**
-        @notice - Modiifier to check if the caller has approval for the ERC1155 token
+        @notice - Modiifier to check if the caller has approval for the ERC721 token
         @param _nftAddress - The address of the token
      */
-    modifier HasApprovalItem(address _nftAddress) {
+    modifier HasApprovalERC721(address _nftAddress) {
         if (
-            IERC1155(_nftAddress).isApprovedForAll(msg.sender, address(this)) ==
+            IERC721(_nftAddress).isApprovedForAll(msg.sender, address(this)) ==
             false
-        ) revert Fillion__ERC1155ApprovalRequired();
+        ) revert Fillion__ERC721ApprovalRequired();
         _;
     }
     /**
@@ -387,7 +312,7 @@ contract FillionMarketplace is Ownable {
      */
     modifier NotListed(address _nftAddress, uint256 _tokenId) {
         if (isTokenListed[_nftAddress][_tokenId] == true)
-            revert Fillion__ERC1155AlreadyListed();
+            revert Fillion__ERC721AlreadyListed();
         _;
     }
 }
