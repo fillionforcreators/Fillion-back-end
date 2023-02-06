@@ -1,12 +1,10 @@
 # FEVM Hardhat Kit
 
 ## Cloning the Repo
+FillionArtist contract address: 0x1f83a5942093603F7772EdE4A7Fb8EcF9043c53B
 
-FillionArtist contract address: 0x419b995edc4809fa6Ca60a08a7C2659Ac7009A2d
 
-Marketplace contract address: 0x304bAB13602BB06F418386D3eE827921EaD5bDfb
-
-Factory contract address: 0xed3D7F42A1B88124ADe60071AAD9cdDb30657ED8
+Factory contract address: 0x6B2E3f14bb79785261e4e6701b21E0b9205940b2
 
 Open up your terminal (or command prompt) and navigate to a directory you would like to store this code on. Once there type in the following command:
 
